@@ -24,6 +24,25 @@
  */
 (function($){
 
+	$.fn.countUp = function(options) {
+
+		config = {};
+
+		$.extend(config, options);
+
+		diffSecs = this.setCountUp(config);
+
+		if (config.omitWeeks)
+		{
+			$.data($(this)[0], 'omitWeeks', config.omitWeeks);
+		}
+
+		$('#' + $(this).attr('id') + ' .digit').html('<div class="top"></div><div class="bottom"></div>');
+		$(this).doCountUp($(this).attr('id'), diffSecs, 500);
+
+		return this;
+	};
+
 	$.fn.countDown = function (options) {
 
 		config = {};
@@ -31,7 +50,7 @@
 		$.extend(config, options);
 
 		diffSecs = this.setCountDown(config);
-	
+
 		if (config.onComplete)
 		{
 			$.data($(this)[0], 'callback', config.onComplete);
@@ -45,7 +64,6 @@
 		$(this).doCountDown($(this).attr('id'), diffSecs, 500);
 
 		return this;
-
 	};
 
 	$.fn.stopCountDown = function () {
@@ -54,6 +72,31 @@
 
 	$.fn.startCountDown = function () {
 		this.doCountDown($(this).attr('id'),$.data(this[0], 'diffSecs'), 500);
+	};
+
+	$.fn.setCountUp = function(options) {
+
+		var curTime = new Date();
+		var startTime = new Date();
+
+		if(options.startDate) {
+			startTime = new Date(options.startDate.month + '/' + options.startDate.day + '/' + options.startDate.year + ' ' + options.startDate.hour + ':' + options.startDate.min + ':' + options.startDate.sec + (options.startDate.utc ? ' UTC' : ''));
+		}
+		else if (options.startOffset)
+		{
+			startTime.setFullYear(startTime.getFullYear() - options.startOffset.year);
+			startTime.setMonth(startTime.getMonth() - options.startOffset.month);
+			startTime.setDate(startTime.getDate() - options.startOffset.day);
+			startTime.setHours(startTime.getHours() - options.startOffset.hour);
+			startTime.setMinutes(startTime.getMinutes() - options.startOffset.min);
+			startTime.setSeconds(startTime.getSeconds() - options.startOffset.sec);
+		}
+
+		diffSecs = Math.floor((curTime.valueOf()-startTime.valueOf())/1000);
+
+		$.data(this[0], 'diffSecs', diffSecs);
+
+		return diffSecs;
 	};
 
 	$.fn.setCountDown = function (options) {
@@ -82,6 +125,43 @@
 		return diffSecs;
 	};
 
+	$.fn.doCountUp = function(id, diffSecs, duration) {
+		$this = $('#' + id);
+		if (diffSecs <= 0)
+		{
+			diffSecs = 0;
+			if ($.data($this[0], 'timer'))
+			{
+				clearTimeout($.data($this[0], 'timer'));
+			}
+		}
+
+		secs = diffSecs % 60;
+		mins = Math.floor(diffSecs/60)%60;
+		hours = Math.floor(diffSecs/60/60)%24;
+		if ($.data($this[0], 'omitWeeks') == true)
+		{
+			days = Math.floor(diffSecs/60/60/24);
+			weeks = Math.floor(diffSecs/60/60/24/7);
+		}
+		else
+		{
+			days = Math.floor(diffSecs/60/60/24)%7;
+			weeks = Math.floor(diffSecs/60/60/24/7);
+		}
+
+		$this.dashChangeTo(id, 'seconds_dash', secs, duration ? duration : 800);
+		$this.dashChangeTo(id, 'minutes_dash', mins, duration ? duration : 1200);
+		$this.dashChangeTo(id, 'hours_dash', hours, duration ? duration : 1200);
+		$this.dashChangeTo(id, 'days_dash', days, duration ? duration : 1200);
+		$this.dashChangeTo(id, 'weeks_dash', weeks, duration ? duration : 1200);
+
+		$.data($this[0], 'diffSecs', diffSecs);
+		e = $this;
+		t = setTimeout(function() { e.doCountUp(id, diffSecs+1) } , 1000);
+		$.data(e[0], 'timer', t);
+	};
+
 	$.fn.doCountDown = function (id, diffSecs, duration) {
 		$this = $('#' + id);
 		if (diffSecs <= 0)
@@ -101,7 +181,7 @@
 			days = Math.floor(diffSecs/60/60/24);
 			weeks = Math.floor(diffSecs/60/60/24/7);
 		}
-		else 
+		else
 		{
 			days = Math.floor(diffSecs/60/60/24)%7;
 			weeks = Math.floor(diffSecs/60/60/24/7);
@@ -119,23 +199,22 @@
 			e = $this;
 			t = setTimeout(function() { e.doCountDown(id, diffSecs-1) } , 1000);
 			$.data(e[0], 'timer', t);
-		} 
-		else if (cb = $.data($this[0], 'callback')) 
+		}
+		else if (cb = $.data($this[0], 'callback'))
 		{
 			$.data($this[0], 'callback')();
 		}
-
 	};
 
 	$.fn.dashChangeTo = function(id, dash, n, duration) {
-		  $this = $('#' + id);
-		 
-		  for (var i=($this.find('.' + dash + ' .digit').length-1); i>=0; i--)
-		  {
-				var d = n%10;
-				n = (n - d) / 10;
-				$this.digitChangeTo('#' + $this.attr('id') + ' .' + dash + ' .digit:eq('+i+')', d, duration);
-		  }
+		$this = $('#' + id);
+
+		for (var i=($this.find('.' + dash + ' .digit').length-1); i>=0; i--)
+		{
+			var d = n%10;
+			n = (n - d) / 10;
+			$this.digitChangeTo('#' + $this.attr('id') + ' .' + dash + ' .digit:eq('+i+')', d, duration);
+		}
 	};
 
 	$.fn.digitChangeTo = function (digit, n, duration) {
@@ -148,7 +227,7 @@
 
 			$(digit + ' div.top').css({'display': 'none'});
 			$(digit + ' div.top').html((n ? n : '0')).slideDown(duration);
-			
+
 
 			$(digit + ' div.bottom').animate({'height': ''}, duration, function() {
 				$(digit + ' div.bottom').html($(digit + ' div.top').html());
